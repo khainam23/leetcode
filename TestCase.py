@@ -1,10 +1,16 @@
+import time
+import tracemalloc
+
 class TestCase():
     def test_case(self, *args):
         # Thiết lập độ rộng cột
-        w_stt, w_status, w_act, w_exp = 5, 10, 25, 25
+        w_stt, w_status, w_time, w_mem = 5, 10, 12, 12
+        w_act, w_exp = 20, 20
         
         # In tiêu đề bảng
-        header = f"{'STT':<{w_stt}} | {'Status':<{w_status}} | {'Actual':<{w_act}} | {'Expected':<{w_exp}}"
+        header = (f"{'STT':<{w_stt}} | {'Status':<{w_status}} | "
+                  f"{'Time (ms)':<{w_time}} | {'Mem (KB)':<{w_mem}} | "
+                  f"{'Actual':<{w_act}} | {'Expected':<{w_exp}}")
         print(header)
         print("-" * len(header))
 
@@ -25,7 +31,28 @@ class TestCase():
             else:
                 test_cases = [(inputs, "Missing Expected")]
         
-        for count, (actual, expected) in enumerate(test_cases):
+        for count, (item, expected) in enumerate(test_cases):
+            # Bắt đầu đo tài nguyên và thời gian
+            tracemalloc.start()
+            start_time = time.perf_counter()
+            
+            # Thực thi nếu item là callable, nếu không coi như kết quả đã có sẵn
+            if callable(item):
+                try:
+                    actual = item()
+                except Exception as e:
+                    actual = f"Error: {e}"
+            else:
+                actual = item
+            
+            # Kết thúc đo
+            end_time = time.perf_counter()
+            _, peak = tracemalloc.get_traced_memory()
+            tracemalloc.stop()
+
+            duration_ms = (end_time - start_time) * 1000
+            mem_kb = peak / 1024
+            
             status = "PASS" if actual == expected else "FAIL"
 
             def format_val(val, width):
@@ -35,4 +62,9 @@ class TestCase():
             act_str = format_val(actual, w_act)
             exp_str = format_val(expected, w_exp)
 
-            print(f"{count + 1:<{w_stt}} | {status:<{w_status}} | {act_str:<{w_act}} | {exp_str:<{w_exp}}")
+            print(f"{count + 1:<{w_stt}} | "
+                  f"{status:<{w_status}} | "
+                  f"{duration_ms:<{w_time}.4f} | "
+                  f"{mem_kb:<{w_mem}.2f} | "
+                  f"{act_str:<{w_act}} | "
+                  f"{exp_str:<{w_exp}}")
